@@ -162,23 +162,93 @@ export async function onRequest(context) {
     const weekEvents = weekData.events || [];
     const weekLessons = weekEvents.filter(e => e.customer_id !== null);
 
-    // Staff info
-    const dailyCountByUser = {};
+    // Classify booking codes into readable categories
+    function classifyCode(code) {
+      if (!code) return 'Other';
+      const c = code.toUpperCase();
+      if (c.startsWith('PRI') || c === 'PRIV') return 'Private';
+      if (c.startsWith('GR') || c.startsWith('GRP')) return 'Group';
+      if (c.includes('TRAIN') || c === 'GEN' || c.includes('COACH')) return 'Training';
+      if (c.includes('WEDDING') || c === 'WED') return 'Wedding';
+      if (c.includes('PARTY') || c === 'DP') return 'Party';
+      if (c === 'BREAK' || c === 'DINNER' || c === 'LUNCH') return 'Break';
+      if (c === 'CHKOUT' || c === 'PCHAT' || c === 'TTEA' || c === 'PORGCL') return 'Admin';
+      return 'Other';
+    }
+
+    // Staff info with per-teacher daily breakdown by type
+    // Step 1: Count ONLY events with customer_id (actual booked lessons)
+    const dailyBreakdownByUser = {};
     todayLessons.forEach(e => {
-      if (e.userId) dailyCountByUser[e.userId] = (dailyCountByUser[e.userId] || 0) + 1;
+      if (!e.userId) return;
+      const cat = classifyCode(e.booking_code);
+      if (cat === 'Break' || cat === 'Admin' || cat === 'Group') return; // Group handled in Step 2 by teaching assignment
+      if (!dailyBreakdownByUser[e.userId]) dailyBreakdownByUser[e.userId] = {};
+      dailyBreakdownByUser[e.userId][cat] = (dailyBreakdownByUser[e.userId][cat] || 0) + 1;
     });
+    // Step 2: Count non-customer events (training blocks AND empty group classes)
+    // These have no customer_id but still appear as blocks on the calendar.
+    // Tracked separately so they bypass dcount normalization.
+    const noCustomerByUser = {};
+    todayEvents.forEach(e => {
+      if (!e.userId) return;
+      if (e.customer_id !== null && e.customer_id !== '') return; // Already counted above
+      const code = (e.booking_code || '').toUpperCase();
+      const text = (e.title || e.text || '').toUpperCase();
+      let cat = null;
+      if (code === 'GEN' || code === 'TRAIN' || code === 'COACH'
+        || text.includes('TRAINING') || text.includes('COACH')) {
+        cat = 'Training';
+      } else if (code.startsWith('GRP') || code.startsWith('GR') || text.includes('GROUP')) {
+        cat = 'Group';
+      }
+      if (!cat) return;
+      if (!noCustomerByUser[e.userId]) noCustomerByUser[e.userId] = {};
+      noCustomerByUser[e.userId][cat] = (noCustomerByUser[e.userId][cat] || 0) + 1;
+    });
+
     const weeklyCountByUser = {};
     weekLessons.forEach(e => {
       if (e.userId) weeklyCountByUser[e.userId] = (weeklyCountByUser[e.userId] || 0) + 1;
     });
 
     const userList = todayData.options?.users || weekData.options?.users || [];
-    const staff = userList.map(u => ({
-      id: u.id,
-      name: u.name,
-      dailyLessons: parseInt(u.dcount) || dailyCountByUser[u.id] || 0,
-      weeklyLessons: parseInt(u.wcount) || weeklyCountByUser[u.id] || 0
-    }));
+    const staff = userList.map(u => {
+      const dcount = parseInt(u.dcount) || 0;
+      const rawBreakdown = dailyBreakdownByUser[u.id] || {};
+      const noCustomerCounts = noCustomerByUser[u.id] || {};
+      // FR grid returns time-slot events (e.g. 30-min blocks), so raw counts
+      // can be ~2x the actual lesson count. Normalize using FR's authoritative dcount.
+      // Step 1 (rawBreakdown) only has customer-id events — normalize those to dcount.
+      const rawLessonTotal = Object.values(rawBreakdown).reduce((s, v) => s + v, 0);
+      const normalizedBreakdown = {};
+      if (rawLessonTotal > 0 && dcount > 0) {
+        const scale = dcount / rawLessonTotal;
+        let assigned = 0;
+        const entries = Object.entries(rawBreakdown);
+        entries.forEach(([cat, count], i) => {
+          if (i === entries.length - 1) {
+            normalizedBreakdown[cat] = dcount - assigned; // last category gets remainder
+          } else {
+            const scaled = Math.floor(count * scale);
+            normalizedBreakdown[cat] = scaled;
+            assigned += scaled;
+          }
+        });
+      }
+      // Add non-customer events (training, empty group classes) on top — these
+      // are not included in FR's dcount so they bypass normalization.
+      Object.entries(noCustomerCounts).forEach(([cat, count]) => {
+        normalizedBreakdown[cat] = (normalizedBreakdown[cat] || 0) + count;
+      });
+      return {
+        id: u.id,
+        name: u.name,
+        dailyLessons: dcount,
+        weeklyLessons: parseInt(u.wcount) || weeklyCountByUser[u.id] || 0,
+        dailyBreakdown: normalizedBreakdown
+      };
+    });
 
     // Lesson type breakdown for today
     const lessonTypes = {};

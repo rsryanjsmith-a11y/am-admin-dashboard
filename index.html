@@ -1192,13 +1192,30 @@ tr:hover td{background:rgba(255,255,255,.015);}
 
             document.getElementById('try-copy-html-btn').addEventListener('click', async (e) => {
               const btn = e.currentTarget;
+              const orig = btn.textContent;
               try {
-                await navigator.clipboard.writeText(ctx.renderedHtml);
-                const orig = btn.textContent;
-                btn.textContent = '✓ Copied — now paste into Zoho HTML compose';
+                // Write BOTH text/html AND text/plain to the clipboard so:
+                //   - Gmail / Apple Mail / Outlook web pick up the HTML and render it as a styled email (just paste normally)
+                //   - Zoho Mail HTML compose mode picks up the source and renders it
+                //   - Plain-text editors get the source as a fallback
+                const html = ctx.renderedHtml;
+                const item = new ClipboardItem({
+                  'text/html':  new Blob([html], { type: 'text/html' }),
+                  'text/plain': new Blob([html], { type: 'text/plain' })
+                });
+                await navigator.clipboard.write([item]);
+                btn.textContent = '✓ Copied — paste into any compose window';
                 setTimeout(() => { btn.textContent = orig; }, 3000);
-              } catch {
-                btn.textContent = 'Copy failed — try View Full Email and copy from there';
+              } catch (err) {
+                // Older browsers without ClipboardItem support — fall back to plain text only
+                try {
+                  await navigator.clipboard.writeText(ctx.renderedHtml);
+                  btn.textContent = '✓ Copied as HTML source (use View in New Tab + Cmd+A + Cmd+C for rich paste)';
+                  setTimeout(() => { btn.textContent = orig; }, 4000);
+                } catch {
+                  btn.textContent = 'Copy failed — open View in New Tab, select all, copy';
+                  setTimeout(() => { btn.textContent = orig; }, 4000);
+                }
               }
             });
             document.getElementById('try-view-tab-btn').addEventListener('click', () => {

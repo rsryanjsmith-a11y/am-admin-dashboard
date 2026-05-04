@@ -673,6 +673,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
           <div style="display:flex;gap:8px;">
             <button class="topbar-btn btn-gold" onclick="alert('Opens settings for connecting each studio\\'s Zoho mailbox.');">Mailbox Settings</button>
             <button class="topbar-btn btn-primary" onclick="leadsRefresh();">Check for New Leads</button>
+            <button class="topbar-btn" id="try-lead-open-btn" style="background:linear-gradient(135deg,#7A1B2E,#9E2D45);color:#fff;border:0;font-weight:600;">Try the AI on a Real Lead</button>
           </div>
         </div>
 
@@ -944,6 +945,266 @@ tr:hover td{background:rgba(255,255,255,.015);}
           // Initial render
           renderList();
           renderPreview();
+        })();
+        </script>
+
+        <!-- ===================================================================== -->
+        <!-- TRY A LEAD — live AI test against the deployed Cloudflare Worker     -->
+        <!-- ===================================================================== -->
+
+        <!-- Modal -->
+        <div id="try-lead-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;">
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.6);">
+            <div style="padding:24px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div class="card-title" style="font-size:18px;">Try the AI on a Real Lead</div>
+                <div class="card-subtitle" style="margin-top:4px;">Paste a lead email below — the AI will draft a reply in your voice. Nothing sends; this is just a draft.</div>
+              </div>
+              <button id="try-lead-close-btn" style="background:transparent;border:0;color:var(--text-secondary);font-size:24px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
+            </div>
+            <div style="padding:24px 28px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                <label style="font-size:12px;color:var(--text-secondary);">
+                  <div style="margin-bottom:6px;font-weight:500;">Their first name (and last, if known)</div>
+                  <input id="try-lead-from-name" type="text" placeholder="Sarah Reynolds" style="width:100%;padding:10px 12px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);border-radius:8px;font:inherit;font-size:13px;">
+                </label>
+                <label style="font-size:12px;color:var(--text-secondary);">
+                  <div style="margin-bottom:6px;font-weight:500;">Their email</div>
+                  <input id="try-lead-from-email" type="email" placeholder="sarah@example.com" style="width:100%;padding:10px 12px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);border-radius:8px;font:inherit;font-size:13px;">
+                </label>
+              </div>
+              <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:14px;">
+                <div style="margin-bottom:6px;font-weight:500;">Subject line</div>
+                <input id="try-lead-subject" type="text" placeholder="Looking into dance lessons" style="width:100%;padding:10px 12px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);border-radius:8px;font:inherit;font-size:13px;">
+              </label>
+              <label style="font-size:12px;color:var(--text-secondary);display:block;">
+                <div style="margin-bottom:6px;font-weight:500;">The email they sent you</div>
+                <textarea id="try-lead-body" placeholder="Hi, my fiancé and I are getting married next October and we'd love to learn a first dance..." rows="8" style="width:100%;padding:12px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);border-radius:8px;font:inherit;font-size:13px;line-height:1.5;resize:vertical;"></textarea>
+              </label>
+              <div id="try-lead-error" style="display:none;margin-top:14px;padding:12px 14px;background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.3);border-radius:8px;color:var(--danger);font-size:13px;"></div>
+            </div>
+            <div style="padding:18px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;background:var(--bg-secondary);">
+              <button id="try-lead-cancel-btn" class="leads-action-btn">Cancel</button>
+              <button id="try-lead-submit-btn" class="leads-action-btn primary">Generate Draft</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Try-a-Lead logic -->
+        <script>
+        (function(){
+          const WORKER_URL = 'https://am-lead-drafter-test.nichetoolkitsshop.workers.dev/draft';
+
+          // Inlined email layout — mirrors AM leads email scraper/email-templates/_layout.html.
+          // Placeholders: SUBJECT, PREHEADER, HEADER_GRADIENT_CSS, HEADER_LABEL, HEADER_TAGLINE,
+          //               STUDIO_NAME, HEADLINE, BODY_HTML, CTA_LABEL, CTA_HREF,
+          //               CONTACT_FALLBACK_HTML, CLOSING_PARAGRAPH, SIGNOFF, MANAGER_NAME,
+          //               MANAGER_TITLE, STUDIO_PHONE, STUDIO_ADDRESS_LINE, STUDIO_EMAIL.
+          const LAYOUT_TEMPLATE = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{{SUBJECT}}</title></head><body style="margin:0;padding:0;background-color:#F5F5F7;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Arial,sans-serif;color:#1D1D1F;-webkit-font-smoothing:antialiased;"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F5F5F7;">{{PREHEADER}}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F5F5F7;"><tr><td align="center" style="padding:48px 16px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;"><tr><td align="center" style="padding-bottom:24px;"><span style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:28px;font-weight:400;color:#1D1D1F;letter-spacing:0.01em;">Arthur Murray</span><span style="display:inline-block;margin:0 10px;color:#86868B;">&middot;</span><span style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:500;color:#6E6E73;letter-spacing:0.04em;text-transform:uppercase;">{{STUDIO_NAME}}</span></td></tr></table><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#FFFFFF;border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06);overflow:hidden;"><tr><td style="padding:0;line-height:0;font-size:0;background:{{HEADER_GRADIENT_CSS}};height:260px;border-radius:16px 16px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="height:260px;"><tr><td align="center" valign="middle" style="padding:24px;"><div style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;font-size:13px;font-weight:500;color:rgba(255,255,255,.85);letter-spacing:0.16em;text-transform:uppercase;margin-bottom:12px;">{{HEADER_LABEL}}</div><div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:38px;font-weight:400;color:#FFFFFF;letter-spacing:0.01em;line-height:1.1;text-shadow:0 2px 8px rgba(0,0,0,.25);">{{HEADER_TAGLINE}}</div></td></tr></table></td></tr><tr><td style="padding:40px 40px 32px 40px;"><h1 style="margin:0 0 24px 0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Arial,sans-serif;font-size:32px;font-weight:600;line-height:1.2;letter-spacing:-0.02em;color:#1D1D1F;">{{HEADLINE}}</h1><div style="font-size:17px;line-height:1.55;color:#1D1D1F;">{{BODY_HTML}}</div><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 8px 0;"><tr><td style="background-color:#B8252F;border-radius:980px;"><a href="{{CTA_HREF}}" style="display:inline-block;padding:14px 28px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;color:#FFFFFF;text-decoration:none;letter-spacing:-0.01em;">{{CTA_LABEL}}</a></td></tr></table><p style="margin:16px 0 0 0;font-size:15px;line-height:1.5;color:#6E6E73;">{{CONTACT_FALLBACK_HTML}}</p><p style="margin:24px 0 0 0;font-size:17px;line-height:1.55;color:#1D1D1F;">{{CLOSING_PARAGRAPH}}</p></td></tr><tr><td style="padding:0 40px;"><div style="height:1px;background-color:#E5E5E7;line-height:1px;font-size:1px;">&nbsp;</div></td></tr><tr><td style="padding:32px 40px 40px 40px;"><p style="margin:0 0 16px 0;font-size:17px;line-height:1.55;color:#1D1D1F;">{{SIGNOFF}}</p><p style="margin:0;font-size:15px;line-height:1.5;color:#1D1D1F;"><strong style="font-weight:600;">{{MANAGER_NAME}}</strong><br><span style="color:#6E6E73;">{{MANAGER_TITLE}}</span></p><p style="margin:12px 0 0 0;font-size:13px;line-height:1.5;color:#6E6E73;">{{STUDIO_PHONE}}&nbsp;&middot;&nbsp;{{STUDIO_ADDRESS_LINE}}<br><a href="mailto:{{STUDIO_EMAIL}}" style="color:#6E6E73;text-decoration:none;border-bottom:1px solid #E5E5E7;">{{STUDIO_EMAIL}}</a></p></td></tr></table></td></tr></table></body></html>`;
+
+          // Castle Rock studio config (others added when Lakewood/Denver knowledge is in)
+          const STUDIOS = {
+            'castle-rock': {
+              name: 'Castle Rock',
+              managerName: 'Nicki Day',
+              managerFirstName: 'Nicki',
+              managerTitle: 'Arthur Murray Dance Center · Castle Rock',
+              phone: '(303) 814-8196',
+              textPhone: '303-351-2656',
+              address: '1057 Park St Unit C, Castle Rock, CO 80109',
+              email: 'nicki@coloradodancestudios.com',
+            },
+          };
+
+          function gradientFor(category){
+            switch(category){
+              case 'wedding_inquiry': return 'linear-gradient(135deg,#1A0E1A 0%,#5C2A3D 40%,#B8252F 100%)';
+              case 'scheduled_lesson_confirmation':
+              case 'reschedule':      return 'linear-gradient(135deg,#0E1A2E 0%,#1F3A5C 35%,#B8252F 100%)';
+              case 'quinceanera':     return 'linear-gradient(135deg,#1A0E1A 0%,#6E2A6E 40%,#B8252F 100%)';
+              default:                return 'linear-gradient(135deg,#2A0A0E 0%,#6B1218 35%,#B8252F 100%)';
+            }
+          }
+          function defaultLabel(category){
+            return ({wedding_inquiry:'Wedding Lessons',scheduled_lesson_confirmation:"You're Confirmed",reschedule:"Let's Reschedule",quinceanera:'Quinceañera',group_class:'Group Classes'})[category] || 'Six Sessions · $95';
+          }
+          function escAttr(s){ return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+          function escHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+          function renderEmail(draft, studio, category){
+            const phoneTel = 'tel:+1' + studio.phone.replace(/\D/g,'');
+            const phoneLink = `<a href="${phoneTel}" style="color:#1D1D1F;text-decoration:none;border-bottom:1px solid #E5E5E7;">${escHtml(studio.phone)}</a>`;
+            let contactFallback = `Or call ${phoneLink}`;
+            if(studio.textPhone){
+              const textTel = 'sms:+1' + studio.textPhone.replace(/\D/g,'');
+              contactFallback += ` &middot; text <a href="${textTel}" style="color:#1D1D1F;text-decoration:none;border-bottom:1px solid #E5E5E7;">${escHtml(studio.textPhone)}</a>`;
+            }
+            const r = {
+              SUBJECT: escHtml(draft.subject||''),
+              PREHEADER: escHtml(draft.preheader||''),
+              HEADER_GRADIENT_CSS: gradientFor(category),
+              HEADER_LABEL: escHtml(draft.header_caption || defaultLabel(category)),
+              HEADER_TAGLINE: escHtml((draft.header_tagline||'').replace(/^[\s_*]+|[\s_*]+$/g,'')),
+              STUDIO_NAME: escHtml(studio.name),
+              HEADLINE: escHtml(draft.headline||''),
+              BODY_HTML: draft.body_html || '',
+              CTA_LABEL: escHtml(draft.cta_label||'Reserve My First Lesson'),
+              CTA_HREF: escAttr(draft.cta_href||('mailto:'+studio.email)),
+              CONTACT_FALLBACK_HTML: contactFallback,
+              CLOSING_PARAGRAPH: escHtml(draft.closing_paragraph||''),
+              SIGNOFF: escHtml(draft.signoff||'– '+studio.managerFirstName),
+              MANAGER_NAME: escHtml(studio.managerName),
+              MANAGER_TITLE: escHtml(studio.managerTitle),
+              STUDIO_PHONE: escHtml(studio.phone),
+              STUDIO_ADDRESS_LINE: escHtml(studio.address),
+              STUDIO_EMAIL: escHtml(studio.email),
+            };
+            return LAYOUT_TEMPLATE.replace(/\{\{(\w+)\}\}/g, (_, k) => r[k] !== undefined ? r[k] : '');
+          }
+
+          // Convert HTML body to a passable plain-text version for mailto:
+          function htmlToText(html){
+            return String(html||'')
+              .replace(/<\/(p|li|ul|ol|br)>/gi,'\n')
+              .replace(/<br\s*\/?>/gi,'\n')
+              .replace(/<li[^>]*>/gi,'  • ')
+              .replace(/<[^>]+>/g,'')
+              .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lsquo;|&rsquo;/g,"'").replace(/&ldquo;|&rdquo;/g,'"')
+              .replace(/\n{3,}/g,'\n\n')
+              .trim();
+          }
+
+          // ── DOM hooks ─────────────────────────────────────────────────────
+          const modal       = document.getElementById('try-lead-modal');
+          const openBtn     = document.getElementById('try-lead-open-btn');
+          const closeBtn    = document.getElementById('try-lead-close-btn');
+          const cancelBtn   = document.getElementById('try-lead-cancel-btn');
+          const submitBtn   = document.getElementById('try-lead-submit-btn');
+          const errorEl     = document.getElementById('try-lead-error');
+          const inFromName  = document.getElementById('try-lead-from-name');
+          const inFromEmail = document.getElementById('try-lead-from-email');
+          const inSubject   = document.getElementById('try-lead-subject');
+          const inBody      = document.getElementById('try-lead-body');
+
+          function showModal(){ modal.style.display='flex'; errorEl.style.display='none'; inFromName.focus(); }
+          function hideModal(){ modal.style.display='none'; }
+
+          openBtn && openBtn.addEventListener('click', showModal);
+          closeBtn && closeBtn.addEventListener('click', hideModal);
+          cancelBtn && cancelBtn.addEventListener('click', hideModal);
+          modal && modal.addEventListener('click', e => { if(e.target === modal) hideModal(); });
+
+          submitBtn && submitBtn.addEventListener('click', async () => {
+            const fromName  = inFromName.value.trim();
+            const fromEmail = inFromEmail.value.trim();
+            const subject   = inSubject.value.trim();
+            const bodyText  = inBody.value.trim();
+
+            if(!fromName || !fromEmail || !subject || !bodyText){
+              errorEl.textContent = 'Please fill in all four fields — name, email, subject, and the lead\'s message.';
+              errorEl.style.display = 'block';
+              return;
+            }
+
+            errorEl.style.display = 'none';
+            const origLabel = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Generating draft… (15-30s)';
+
+            try {
+              const res = await fetch(WORKER_URL, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ studio:'castle-rock', fromName, fromEmail, subject, bodyText })
+              });
+              const data = await res.json();
+
+              if(!res.ok || !data || data.error){
+                throw new Error((data && data.error) || ('HTTP '+res.status));
+              }
+              if(!data.draft || data.draft._parseFailed){
+                throw new Error('AI returned an unparseable response. Try again — sometimes it just hiccups.');
+              }
+
+              const studio = STUDIOS['castle-rock'];
+              const category = (data.classification && data.classification.category) || 'new_inquiry';
+              const renderedHtml = renderEmail(data.draft, studio, category);
+              const plainText = htmlToText(data.draft.body_html);
+
+              hideModal();
+              showResultInPreviewPane({ fromName, fromEmail, subject, bodyText, draft: data.draft, classification: data.classification, renderedHtml, plainText });
+            } catch (err) {
+              errorEl.innerHTML = '<strong>Hmm, that didn\'t work:</strong> ' + escHtml(err.message || String(err)) + '. Try again — Cloudflare\'s free AI can throttle on busy days.';
+              errorEl.style.display = 'block';
+            } finally {
+              submitBtn.disabled = false;
+              submitBtn.textContent = origLabel;
+            }
+          });
+
+          // ── Show the AI's draft in the existing right preview pane ────────
+          function showResultInPreviewPane(ctx){
+            const studio = STUDIOS['castle-rock'];
+            const cat = ctx.classification && ctx.classification.category;
+            const conf = ctx.classification && ctx.classification.confidence;
+
+            // Hide the empty state, show the loaded state — same DOM the mock data uses.
+            document.getElementById('leads-preview-empty').style.display = 'none';
+            document.getElementById('leads-preview-loaded').style.display = 'block';
+
+            document.getElementById('leads-preview-from').textContent = `${ctx.fromName} <${ctx.fromEmail}>  ·  LIVE AI DRAFT`;
+            document.getElementById('leads-preview-subject').textContent = ctx.draft.subject || ctx.subject;
+            document.getElementById('leads-preview-original').textContent = ctx.bodyText;
+
+            const noteEl = document.getElementById('leads-preview-note');
+            noteEl.style.display = 'block';
+            noteEl.style.background = 'rgba(60,179,113,.1)';
+            noteEl.style.borderColor = 'rgba(60,179,113,.3)';
+            noteEl.style.color = '#3CB371';
+            noteEl.innerHTML = `<strong>Live AI draft.</strong> Classified as <em>${escHtml(cat||'unknown')}</em> (confidence ${conf!=null?Math.round(conf*100)+'%':'—'}). Review below, then send via your email below.`;
+
+            // Render via srcdoc so it works without a separate file
+            const iframe = document.getElementById('leads-preview-iframe');
+            iframe.removeAttribute('src');
+            iframe.srcdoc = ctx.renderedHtml;
+            iframe.style.display = 'block';
+
+            const subjectLine = (ctx.draft.subject || ('Re: '+ctx.subject)).replace(/^Re: /,'');
+            const mailtoSubject = encodeURIComponent('Re: '+subjectLine);
+            const mailtoBody = encodeURIComponent(ctx.plainText + '\n\n' + (ctx.draft.signoff||'– '+studio.managerFirstName) + '\n\n' + studio.managerName + '\n' + studio.managerTitle + '\n' + studio.phone + '  ·  ' + studio.address + '\n' + studio.email);
+            const mailtoTo = encodeURIComponent(ctx.fromEmail);
+            const mailtoHref = `mailto:${mailtoTo}?subject=${mailtoSubject}&body=${mailtoBody}`;
+
+            document.getElementById('leads-preview-actions').innerHTML = `
+              <a href="${mailtoHref}" class="leads-action-btn primary" style="text-decoration:none;display:inline-block;">Open in My Email</a>
+              <button class="leads-action-btn" id="try-copy-html-btn">Copy HTML for Zoho</button>
+              <button class="leads-action-btn" id="try-another-btn">Try Another Lead</button>
+              <button class="leads-action-btn" id="try-back-inbox-btn">Back to Inbox</button>
+            `;
+
+            document.getElementById('try-copy-html-btn').addEventListener('click', async (e) => {
+              const btn = e.currentTarget;
+              try {
+                await navigator.clipboard.writeText(ctx.renderedHtml);
+                const orig = btn.textContent;
+                btn.textContent = 'Copied — paste into Zoho compose';
+                setTimeout(() => { btn.textContent = orig; }, 2500);
+              } catch {
+                btn.textContent = 'Copy failed — select & copy from the preview manually';
+              }
+            });
+            document.getElementById('try-another-btn').addEventListener('click', () => {
+              inFromName.value = ''; inFromEmail.value = ''; inSubject.value = ''; inBody.value = '';
+              showModal();
+            });
+            document.getElementById('try-back-inbox-btn').addEventListener('click', () => {
+              document.getElementById('leads-preview-empty').style.display = 'block';
+              document.getElementById('leads-preview-loaded').style.display = 'none';
+              const iframe = document.getElementById('leads-preview-iframe');
+              iframe.srcdoc = '';
+              iframe.src = 'about:blank';
+            });
+          }
         })();
         </script>
 

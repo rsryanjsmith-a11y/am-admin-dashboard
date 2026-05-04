@@ -187,13 +187,13 @@ tr:hover td{background:rgba(255,255,255,.015);}
 .action-btn:hover{background:var(--gold);color:var(--bg-primary);}
 
 /* ========== LOCATION CARDS ========== */
-.location-card{padding:24px;}
-.location-card h3{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:4px;}
-.location-card .addr{font-size:11px;color:var(--text-muted);margin-bottom:16px;font-weight:400;}
-.location-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-.location-stat{text-align:center;padding:12px;background:var(--bg-surface);border-radius:var(--radius);border:1px solid var(--border);}
-.location-stat .val{font-family:var(--font-display);font-size:22px;font-weight:700;}
-.location-stat .lbl{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-top:2px;font-weight:500;}
+.location-card{padding:24px;min-width:0;overflow:hidden;}
+.location-card h3{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.location-card .addr{font-size:11px;color:var(--text-muted);margin-bottom:16px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.location-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.location-stat{text-align:center;padding:10px 6px;background:var(--bg-surface);border-radius:var(--radius);border:1px solid var(--border);min-width:0;}
+.location-stat .val{font-family:var(--font-display);font-size:20px;font-weight:700;}
+.location-stat .lbl{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;font-weight:500;}
 
 /* ========== MOBILE NAV ========== */
 .mobile-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:1000;background:var(--bg-secondary);border-top:1px solid var(--border);padding:8px 0 max(8px, env(safe-area-inset-bottom));height:auto;}
@@ -360,6 +360,10 @@ tr:hover td{background:rgba(255,255,255,.015);}
         <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 1L3 10h5l-1 7 7-9h-5l1-7z"/></svg>
         Speed to Lead
       </div>
+      <div class="nav-item" data-page="leads">
+        <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H6l-3 3V4z"/><path d="M5 7h8M5 9.5h6"/></svg>
+        Lead Drafter <span class="badge">3</span>
+      </div>
       <div class="nav-item" data-page="doc-processing">
         <svg class="nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 1H4a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6l-5-5z"/><path d="M11 1v5h5"/></svg>
         Document Processing
@@ -489,9 +493,9 @@ tr:hover td{background:rgba(255,255,255,.015);}
             <h3>Arthur Murray Castle Rock</h3>
             <div class="addr">750 S. Perry St Suite 120, Castle Rock, CO 80104</div>
             <div class="location-stats">
-              <div class="location-stat"><div class="val text-gold">237</div><div class="lbl">Students</div></div>
-              <div class="location-stat"><div class="val text-success">$35K</div><div class="lbl">Revenue</div></div>
-              <div class="location-stat"><div class="val" style="color:var(--info);">40</div><div class="lbl">Leads/Wk</div></div>
+              <div class="location-stat"><div class="val text-gold" id="cr-students">—</div><div class="lbl">Students</div></div>
+              <div class="location-stat"><div class="val text-success" id="cr-revenue">$35K</div><div class="lbl">Revenue</div></div>
+              <div class="location-stat"><div class="val" style="color:var(--info);" id="cr-leads">40</div><div class="lbl">Leads/Wk</div></div>
             </div>
           </div>
         </div>
@@ -575,7 +579,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
             <div class="card">
               <div class="card-header"><div class="card-title">Today's Schedule by Teacher</div></div>
               <div class="table-wrap"><table>
-                <thead><tr><th>Teacher</th><th>Today</th><th>This Week</th></tr></thead>
+                <thead><tr><th>Teacher</th><th>Private</th><th>Group</th><th>Training</th><th>Other</th><th>Total</th><th>Week</th></tr></thead>
                 <tbody id="fr-staff-table"></tbody>
               </table></div>
             </div>
@@ -626,6 +630,323 @@ tr:hover td{background:rgba(255,255,255,.015);}
             <div class="workflow-step"><div class="step-num">04</div><h4>Team Notified</h4><p>Right instructor at the right location gets full context and booking link</p></div>
           </div>
         </div>
+      </div>
+
+      <!-- ==================== LEAD DRAFTER ==================== -->
+      <div class="page" id="page-leads">
+
+        <!-- KPI strip -->
+        <div class="grid grid-4" style="margin-bottom:24px;">
+          <div class="card kpi">
+            <div class="kpi-icon" style="background:rgba(74,144,217,.1);"><svg viewBox="0 0 20 20" fill="none" stroke="#4A90D9" stroke-width="1.5"><path d="M2 5l8 5 8-5"/><rect x="2" y="3" width="16" height="14" rx="2"/></svg></div>
+            <div class="kpi-value" style="color:var(--info);" id="leads-pending">3</div>
+            <div class="kpi-label">Drafts Awaiting Review</div>
+            <div class="kpi-change">Across all 3 studios</div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-icon" style="background:rgba(60,179,113,.1);"><svg viewBox="0 0 20 20" fill="none" stroke="#3CB371" stroke-width="1.5"><path d="M5 10l3 3 7-7"/></svg></div>
+            <div class="kpi-value text-success" id="leads-sent-week">28</div>
+            <div class="kpi-label">Approved &amp; Sent This Week</div>
+            <div class="kpi-change up">+12 vs last week</div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-icon" style="background:rgba(196,165,90,.1);"><svg viewBox="0 0 20 20" fill="none" stroke="#C4A55A" stroke-width="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg></div>
+            <div class="kpi-value text-gold" id="leads-response-time">4 min</div>
+            <div class="kpi-label">Avg Response Time</div>
+            <div class="kpi-change up">Down from 6 hrs</div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-icon" style="background:rgba(122,27,46,.1);"><svg viewBox="0 0 20 20" fill="none" stroke="#9E2D45" stroke-width="1.5"><path d="M5 10l3 3 7-7"/></svg></div>
+            <div class="kpi-value" style="color:var(--burgundy-light);" id="leads-classify-acc">94%</div>
+            <div class="kpi-label">Auto-Classified Correctly</div>
+            <div class="kpi-change up">Last 50 leads</div>
+          </div>
+        </div>
+
+        <!-- Tenant tabs -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;">
+          <div style="display:inline-flex;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);padding:3px;" id="leads-tenant-tabs">
+            <button class="leads-tab" data-tenant="castle-rock" aria-selected="true">Castle Rock <span style="opacity:.55;margin-left:6px;">3</span></button>
+            <button class="leads-tab" data-tenant="lakewood"    aria-selected="false">Lakewood <span style="opacity:.55;margin-left:6px;">0</span></button>
+            <button class="leads-tab" data-tenant="denver"      aria-selected="false">Denver <span style="opacity:.55;margin-left:6px;">0</span></button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="topbar-btn btn-gold" onclick="alert('Opens settings for connecting each studio\\'s Zoho mailbox.');">Mailbox Settings</button>
+            <button class="topbar-btn btn-primary" onclick="leadsRefresh();">Check for New Leads</button>
+          </div>
+        </div>
+
+        <!-- Two-pane: drafts list + preview -->
+        <div style="display:grid;grid-template-columns:minmax(340px, 420px) 1fr;gap:20px;align-items:start;" id="leads-grid">
+
+          <!-- Drafts list -->
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div class="card-header" style="padding:18px 20px;margin-bottom:0;border-bottom:1px solid var(--border);">
+              <div>
+                <div class="card-title">Inbox</div>
+                <div class="card-subtitle"><span id="leads-list-count">3</span> drafts ready to review</div>
+              </div>
+            </div>
+            <ul id="leads-list" style="list-style:none;margin:0;padding:0;"></ul>
+          </div>
+
+          <!-- Preview pane -->
+          <div class="card" style="padding:0;overflow:hidden;" id="leads-preview-card">
+            <div id="leads-preview-empty" style="padding:80px 32px;text-align:center;color:var(--text-secondary);">
+              <div style="font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Select a draft</div>
+              <p style="margin:0;font-size:13px;">Pick a lead on the left to preview the AI's draft reply.</p>
+            </div>
+            <div id="leads-preview-loaded" style="display:none;">
+              <div style="padding:18px 24px;border-bottom:1px solid var(--border);">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;" id="leads-preview-from"></div>
+                <div style="font-family:var(--font-display);font-size:18px;font-weight:600;line-height:1.3;" id="leads-preview-subject"></div>
+              </div>
+              <div id="leads-preview-note" style="display:none;margin:14px 24px 0 24px;padding:12px 16px;background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);border-radius:var(--radius);font-size:12px;line-height:1.5;color:var(--warning);"></div>
+              <div style="display:flex;gap:8px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--bg-secondary);flex-wrap:wrap;" id="leads-preview-actions"></div>
+              <iframe id="leads-preview-iframe" src="about:blank" title="Email preview" style="display:block;width:100%;min-height:720px;border:0;background:#F5F5F7;"></iframe>
+              <details style="padding:18px 24px;border-top:1px solid var(--border);background:var(--bg-secondary);">
+                <summary style="font-size:12px;color:var(--text-secondary);cursor:pointer;font-weight:500;">Original message</summary>
+                <div id="leads-preview-original" style="margin-top:14px;padding:14px;background:var(--bg-card);border-radius:var(--radius);font-size:13px;line-height:1.6;color:var(--text-primary);white-space:pre-wrap;border:1px solid var(--border);"></div>
+              </details>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Scoped styles for the leads tabs (no global CSS impact) -->
+        <style>
+          #leads-tenant-tabs .leads-tab{appearance:none;border:0;background:transparent;padding:7px 16px;font:inherit;font-size:12px;font-weight:500;color:var(--text-secondary);border-radius:7px;cursor:pointer;transition:all .2s;letter-spacing:.2px;}
+          #leads-tenant-tabs .leads-tab[aria-selected="true"]{background:var(--bg-card);color:var(--text-primary);box-shadow:0 1px 2px rgba(0,0,0,.4);}
+          #leads-tenant-tabs .leads-tab:hover:not([aria-selected="true"]){color:var(--text-primary);}
+
+          #leads-list li{padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+          #leads-list li:last-child{border-bottom:0;}
+          #leads-list li:hover{background:rgba(255,255,255,.025);}
+          #leads-list li[aria-selected="true"]{background:var(--gold-dim);box-shadow:inset 3px 0 0 var(--gold);}
+          .lead-row-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+          .lead-row-from{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+          .lead-row-subject{font-size:12px;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+          .lead-row-time{font-size:11px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;}
+          .lead-row-bottom{margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+          .lead-row-cat{font-size:10px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;font-weight:500;}
+          .lead-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:980px;font-size:10px;font-weight:600;letter-spacing:.3px;}
+          .lead-pill::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;}
+          .lead-pill.drafted{background:rgba(212,168,67,.12);color:var(--warning);}
+          .lead-pill.approved{background:rgba(60,179,113,.12);color:var(--success);}
+          .lead-pill.escalated{background:rgba(192,57,43,.12);color:var(--danger);}
+
+          .leads-action-btn{appearance:none;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);padding:7px 14px;border-radius:var(--radius);font:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;}
+          .leads-action-btn:hover{border-color:var(--border-hover);background:var(--bg-elevated);}
+          .leads-action-btn.primary{background:linear-gradient(135deg,var(--burgundy),var(--burgundy-light));border-color:transparent;color:#fff;}
+          .leads-action-btn.primary:hover{box-shadow:0 4px 14px rgba(122,27,46,.4);transform:translateY(-1px);}
+
+          @media (max-width:920px){#leads-grid{grid-template-columns:1fr !important;}}
+        </style>
+
+        <!-- ===== LEAD DRAFTER LOGIC ===== -->
+        <script>
+        (function(){
+          // Mock data — until the Workers AI / Zoho pipeline is live, this drives the preview UI
+          // so Nicki can see exactly what the experience will look like. Each entry maps to a
+          // pre-rendered email in /leads-previews/.
+          const DRAFTS = {
+            'castle-rock': [
+              {
+                id: 'cr-001',
+                fromName: 'Sarah Reynolds',
+                fromEmail: 'sarah.r.reynolds@gmail.com',
+                subject: 'Looking into dance lessons',
+                receivedAt: '2026-05-04T10:42:00-06:00',
+                status: 'drafted',
+                category: 'new_inquiry',
+                originalBody: "Hi! My name is Sarah and my fiancé Mike and I are interested in learning to dance together. We're getting married next September but for right now we're really just looking for something fun to do on date nights — we both have desk jobs and want to get out and try something new together.\n\nNeither of us has ever danced before. Do we need to bring anything special to a first lesson?\n\nThanks,\nSarah",
+                previewUrl: 'leads-previews/sarah-mike-new-inquiry.html',
+                assistantNote: null
+              },
+              {
+                id: 'cr-002',
+                fromName: 'Jackson Anderson',
+                fromEmail: 'jackson.anderson.colorado@gmail.com',
+                subject: 'Wedding lessons — getting married in October',
+                receivedAt: '2026-05-04T08:02:00-06:00',
+                status: 'drafted',
+                category: 'wedding_inquiry',
+                originalBody: "Hi, my fiancée and I are getting married October 12th and we'd love to learn a first dance to Make You Feel My Love. Do you do choreography? What's the timeline look like?",
+                previewUrl: 'leads-previews/jackson-wedding-inquiry.html',
+                assistantNote: null
+              },
+              {
+                id: 'cr-003',
+                fromName: 'Paul & Janet Hewchester',
+                fromEmail: 'hewchestw@msn.com',
+                subject: 'Re: Welcome — Wednesday at 6:20',
+                receivedAt: '2026-05-03T19:08:00-06:00',
+                status: 'approved',
+                category: 'scheduled_lesson_confirmation',
+                originalBody: "Confirming we'll be there Wednesday at 6:20 — looking forward to it. — Paul & Janet",
+                previewUrl: 'leads-previews/paul-janet-confirmation.html',
+                assistantNote: null
+              },
+              {
+                id: 'cr-004',
+                fromName: 'Anonymous',
+                fromEmail: 'concerned@example.com',
+                subject: 'Refund please',
+                receivedAt: '2026-05-03T15:22:00-06:00',
+                status: 'escalated',
+                category: 'escalate_to_human',
+                originalBody: "I paid for the $95 special three weeks ago and nobody has called me back. I'd like a refund.",
+                previewUrl: null,
+                assistantNote: "Auto-classification did not produce a confident category. Please reply personally. Reason: complaint and refund request."
+              }
+            ],
+            'lakewood': [],
+            'denver': []
+          };
+
+          let activeTenant = 'castle-rock';
+          let activeId = null;
+
+          const $list   = () => document.getElementById('leads-list');
+          const $count  = () => document.getElementById('leads-list-count');
+          const $empty  = () => document.getElementById('leads-preview-empty');
+          const $loaded = () => document.getElementById('leads-preview-loaded');
+          const $iframe = () => document.getElementById('leads-preview-iframe');
+
+          function prettyCategory(c){
+            return ({
+              new_inquiry: 'New Inquiry',
+              wedding_inquiry: 'Wedding',
+              scheduled_lesson_confirmation: 'Lesson Confirmation',
+              reschedule: 'Reschedule',
+              quinceanera: 'Quinceañera',
+              group_class: 'Group Class',
+              other: 'Other',
+              escalate_to_human: 'Needs Personal Reply'
+            })[c] || c;
+          }
+          function prettyStatus(s){
+            return ({drafted:'Drafted', approved:'Sent', escalated:'Escalate'})[s] || s;
+          }
+          function formatTime(iso){
+            const d = new Date(iso);
+            const today = new Date();
+            const sameDay = d.toDateString() === today.toDateString();
+            return sameDay
+              ? d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})
+              : d.toLocaleDateString([], {month:'short', day:'numeric'});
+          }
+          function escapeHtml(s){
+            return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+          }
+
+          function renderList(){
+            const drafts = DRAFTS[activeTenant] || [];
+            $count().textContent = drafts.length;
+
+            if(drafts.length === 0){
+              $list().innerHTML = '<li style="cursor:default;padding:36px 20px;text-align:center;color:var(--text-secondary);font-size:12px;">No drafts yet. Once this studio’s mailbox is connected, new leads will appear here.</li>';
+              return;
+            }
+
+            $list().innerHTML = drafts.map(d => `
+              <li data-id="${d.id}" aria-selected="${d.id === activeId}">
+                <div class="lead-row-top">
+                  <div style="min-width:0;flex:1;">
+                    <div class="lead-row-from">${escapeHtml(d.fromName)}</div>
+                    <div class="lead-row-subject">${escapeHtml(d.subject)}</div>
+                  </div>
+                  <div class="lead-row-time">${formatTime(d.receivedAt)}</div>
+                </div>
+                <div class="lead-row-bottom">
+                  <span class="lead-row-cat">${prettyCategory(d.category)}</span>
+                  <span class="lead-pill ${d.status}">${prettyStatus(d.status)}</span>
+                </div>
+              </li>
+            `).join('');
+
+            $list().querySelectorAll('li[data-id]').forEach(li => {
+              li.addEventListener('click', () => {
+                activeId = li.dataset.id;
+                renderList();
+                renderPreview();
+              });
+            });
+          }
+
+          function renderPreview(){
+            const drafts = DRAFTS[activeTenant] || [];
+            const draft = drafts.find(d => d.id === activeId);
+
+            if(!draft){
+              $empty().style.display = 'block';
+              $loaded().style.display = 'none';
+              return;
+            }
+            $empty().style.display = 'none';
+            $loaded().style.display = 'block';
+
+            document.getElementById('leads-preview-from').textContent = `${draft.fromName} <${draft.fromEmail}>`;
+            document.getElementById('leads-preview-subject').textContent = draft.subject;
+            document.getElementById('leads-preview-original').textContent = draft.originalBody;
+
+            const noteEl = document.getElementById('leads-preview-note');
+            if(draft.assistantNote){
+              noteEl.style.display = 'block';
+              noteEl.innerHTML = '<strong>Heads up: </strong>' + escapeHtml(draft.assistantNote);
+            } else {
+              noteEl.style.display = 'none';
+            }
+
+            const actionsEl = document.getElementById('leads-preview-actions');
+            const isEscalated = draft.status === 'escalated';
+            actionsEl.innerHTML = isEscalated
+              ? `<button class="leads-action-btn" onclick="alert('Opens the original message in your Zoho inbox so you can reply personally.');">Reply in Zoho</button>`
+              : `<button class="leads-action-btn primary" onclick="alert('Approves the draft and sends via your Zoho mailbox. (Stub — wires to Zoho Mail API.)');">Approve & Send</button>
+                 <button class="leads-action-btn" onclick="alert('Opens the draft in an editor for tweaks before sending.');">Edit</button>
+                 <button class="leads-action-btn" onclick="alert('Asks the AI for another draft variation.');">Try another</button>
+                 <button class="leads-action-btn" onclick="alert('Discards the draft and marks the lead for personal reply.');">Discard</button>`;
+
+            if(draft.previewUrl){
+              $iframe().style.display = 'block';
+              $iframe().src = draft.previewUrl;
+            } else {
+              $iframe().style.display = 'none';
+            }
+          }
+
+          // Tenant tabs
+          document.querySelectorAll('#leads-tenant-tabs .leads-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+              document.querySelectorAll('#leads-tenant-tabs .leads-tab').forEach(b => b.setAttribute('aria-selected','false'));
+              btn.setAttribute('aria-selected','true');
+              activeTenant = btn.dataset.tenant;
+              activeId = null;
+              renderList();
+              renderPreview();
+            });
+          });
+
+          // Public hooks
+          window.leadsRefresh = function(){
+            // In production: call POST /api/leads/refresh on the dashboard's Pages Function,
+            // which polls each connected Zoho mailbox and writes new drafts into KV. For now,
+            // just re-render so it feels alive.
+            const btn = event && event.currentTarget;
+            const orig = btn ? btn.textContent : null;
+            if(btn){ btn.textContent = 'Checking…'; btn.disabled = true; }
+            setTimeout(() => {
+              if(btn){ btn.textContent = orig; btn.disabled = false; }
+              renderList();
+            }, 800);
+          };
+
+          // Initial render
+          renderList();
+          renderPreview();
+        })();
+        </script>
+
       </div>
 
       <!-- ==================== DOCUMENT PROCESSING ==================== -->
@@ -1464,7 +1785,7 @@ function navigate(p){
   document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p)?.classList.add('active');
   document.querySelector(`.nav-item[data-page="${p}"]`)?.classList.add('active');
-  const t={'dashboard':'Dashboard','locations':'Studio Locations','mailchimp':'MailChimp Analytics','floating':'Schedule & Staff','programs':'Dance Programs','speed-to-lead':'Speed to Lead','doc-processing':'Document Processing','follow-up':'Follow-Up Sequences','reactivation':'Database Reactivation','reporting':'Internal Reporting','meetings':'Friday Meetings','agents':'AI Agents','suggestions':'Process Improvement','conversations':'Crucial Conversations','ai-chat':'Arthur Murray AI'};
+  const t={'dashboard':'Dashboard','locations':'Studio Locations','mailchimp':'MailChimp Analytics','floating':'Schedule & Staff','programs':'Dance Programs','speed-to-lead':'Speed to Lead','leads':'Lead Drafter','doc-processing':'Document Processing','follow-up':'Follow-Up Sequences','reactivation':'Database Reactivation','reporting':'Internal Reporting','meetings':'Friday Meetings','agents':'AI Agents','suggestions':'Process Improvement','conversations':'Crucial Conversations','ai-chat':'Arthur Murray AI'};
   document.getElementById('pageTitle').textContent=t[p]||p;
   // Show example data for 3 seconds, then open setup slideshow
   if(setupGuides[p] && !visitedPages[p]){
@@ -1582,9 +1903,98 @@ function initWidgets(){
 }
 
 // ==================== MEETING RECORDER ====================
-let isRec=false,recInt=null,recSec=0;
-function toggleRecording(){const b=document.getElementById('recBtn'),s=document.getElementById('recStatus'),t=document.getElementById('recTimer');if(!isRec){isRec=true;b.classList.add('recording');b.innerHTML='<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="4" y="4" width="10" height="10" rx="1"/></svg>';s.textContent='Recording in progress...';t.style.display='block';recSec=0;recInt=setInterval(()=>{recSec++;const h=String(Math.floor(recSec/3600)).padStart(2,'0'),m=String(Math.floor((recSec%3600)/60)).padStart(2,'0'),ss=String(recSec%60).padStart(2,'0');t.textContent=`${h}:${m}:${ss}`;},1000);}else{isRec=false;b.classList.remove('recording');b.innerHTML='<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="6"/></svg>';clearInterval(recInt);s.textContent='Recording saved. Processing with AI...';setTimeout(()=>{s.textContent='Meeting transcribed and summarized successfully.';},2000);}}
-function uploadMeeting(){const i=document.createElement('input');i.type='file';i.accept='audio/*,video/*';i.onchange=()=>{document.getElementById('recStatus').textContent='File uploaded. Processing...';setTimeout(()=>{document.getElementById('recStatus').textContent='Meeting processed. Summary added below.';},3000);};i.click();}
+let isRec=false,recInt=null,recSec=0,mediaRecorder=null,audioChunks=[],audioStream=null;
+
+function isMobilePWA(){
+  const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  return isMobile&&isStandalone;
+}
+function isIOS(){return /iPhone|iPad|iPod/i.test(navigator.userAgent);}
+
+async function toggleRecording(){
+  const b=document.getElementById('recBtn'),s=document.getElementById('recStatus'),t=document.getElementById('recTimer');
+
+  // Check if mic API is available
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    if(isIOS()){
+      s.innerHTML='<strong>Microphone not available in app mode.</strong><br>Tap below to open in Safari, where recording works:<br><a href="'+window.location.href+'" target="_blank" style="color:var(--gold);text-decoration:underline;font-weight:600;display:inline-block;margin-top:8px;">Open in Safari to Record</a><br><span style="font-size:11px;color:var(--text-muted);margin-top:6px;display:inline-block;">Or use the <strong>Upload Recording</strong> button to upload audio from Voice Memos or another app.</span>';
+    }else{
+      s.innerHTML='<strong>Microphone not available.</strong><br>Try opening this page in Chrome or Safari instead.<br><span style="font-size:11px;color:var(--text-muted);margin-top:6px;display:inline-block;">Or use the <strong>Upload Recording</strong> button to upload a recording from another app.</span>';
+    }
+    return;
+  }
+
+  if(!isRec){
+    try{
+      audioStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,sampleRate:44100}});
+      const mimeType=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'audio/webm';
+      mediaRecorder=new MediaRecorder(audioStream,{mimeType});
+      audioChunks=[];
+      mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
+      mediaRecorder.onstop=()=>{
+        const ext=mimeType.includes('mp4')?'m4a':'webm';
+        const blob=new Blob(audioChunks,{type:mimeType});
+        const now=new Date();
+        const dateStr=now.toISOString().slice(0,10);
+        const timeStr=now.toTimeString().slice(0,5).replace(':','-');
+        const fname=`AM-Meeting-${dateStr}-${timeStr}.${ext}`;
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=url;a.download=fname;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+          s.innerHTML=`<strong>Recording complete!</strong><br>Your file <strong>${fname}</strong> is ready. If the download didn't start, tap here:<br><a href="${URL.createObjectURL(new Blob(audioChunks,{type:mimeType}))}" download="${fname}" style="color:var(--gold);text-decoration:underline;font-weight:600;display:inline-block;margin-top:8px;">Save Recording</a>`;
+        }else{
+          s.innerHTML=`Recording saved as <strong>${fname}</strong>. Check your Downloads folder, then bring it to <strong>Cowork</strong> and say:<br><em>"Process my meeting recording through Minutes."</em>`;
+        }
+        audioStream.getTracks().forEach(tr=>tr.stop());
+        audioStream=null;
+      };
+      mediaRecorder.start(1000);
+      isRec=true;
+      b.classList.add('recording');
+      b.innerHTML='<svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="4" y="4" width="10" height="10" rx="1"/></svg>';
+      s.textContent='Recording in progress — speak naturally...';
+      t.style.display='block';recSec=0;
+      recInt=setInterval(()=>{recSec++;const h=String(Math.floor(recSec/3600)).padStart(2,'0'),m=String(Math.floor((recSec%3600)/60)).padStart(2,'0'),ss=String(recSec%60).padStart(2,'0');t.textContent=`${h}:${m}:${ss}`;},1000);
+    }catch(err){
+      if(isIOS()&&isMobilePWA()){
+        s.innerHTML='<strong>Microphone blocked in app mode.</strong><br>Tap below to open in Safari, where recording works:<br><a href="'+window.location.href+'" target="_blank" style="color:var(--gold);text-decoration:underline;font-weight:600;display:inline-block;margin-top:8px;">Open in Safari to Record</a><br><span style="font-size:11px;color:var(--text-muted);margin-top:6px;display:inline-block;">Or use <strong>Voice Memos</strong> on your phone, then tap <strong>Upload Recording</strong> here.</span>';
+      }else if(isIOS()){
+        s.innerHTML='<strong>Microphone access denied.</strong><br>Go to <strong>Settings → Safari → Microphone</strong> and make sure it\'s enabled for this site. Then try again.<br><span style="font-size:11px;color:var(--text-muted);margin-top:6px;display:inline-block;">Or use <strong>Voice Memos</strong> on your phone, then tap <strong>Upload Recording</strong> here.</span>';
+      }else{
+        s.textContent='Microphone access denied. Please allow microphone access in your browser settings and try again.';
+      }
+      console.error('Mic error:',err);
+    }
+  }else{
+    isRec=false;
+    b.classList.remove('recording');
+    b.innerHTML='<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="6"/></svg>';
+    clearInterval(recInt);
+    s.textContent='Saving recording...';
+    if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop();
+  }
+}
+
+function uploadMeeting(){
+  const i=document.createElement('input');i.type='file';i.accept='audio/*,video/*';
+  i.onchange=()=>{
+    if(!i.files[0])return;
+    const file=i.files[0];
+    const s=document.getElementById('recStatus');
+    const url=URL.createObjectURL(file);
+    const a=document.createElement('a');a.href=url;
+    const now=new Date();const dateStr=now.toISOString().slice(0,10);
+    const ext=file.name.split('.').pop()||'m4a';
+    a.download=`AM-Meeting-Upload-${dateStr}.${ext}`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    s.innerHTML=`File saved as <strong>${a.download}</strong>. Bring it to <strong>Cowork</strong> and say:<br><em>"Process my meeting recording through Minutes."</em>`;
+  };
+  i.click();
+}
 
 // ==================== AI CHAT ====================
 const aiR={schedule:['Here is today\'s schedule across all studios:\n\nDenver: 14 private lessons, 3 group classes, evening dance party\nLakewood: 11 private lessons, 2 group classes\nCastle Rock: 9 private lessons, 2 group classes\n\nAll instructors are confirmed. No scheduling conflicts detected.'],leads:['This week\'s lead pipeline across all locations: 156 new leads.\n\nDenver: 64 leads (38% conversion rate)\nLakewood: 52 leads (32% conversion rate)\nCastle Rock: 40 leads (29% conversion rate)\n\nTop sources: Website (45%), Google Ads (28%), Social Media (18%), Referrals (9%).'],revenue:['March revenue summary across all locations:\n\nTotal: $142,000 (+8% vs February)\nDenver: $58,000\nLakewood: $49,000\nCastle Rock: $35,000\n\nPrivate lessons remain the top revenue driver at 55% of total.'],meeting:['Key highlights from last Friday\'s meeting:\n\n1. Spring Showcase dates confirmed: April 18-19\n2. Denver needs two additional evening instructors\n3. Wedding campaign outperforming forecast by 40%\n4. New student packages launching April 1\n5. Castle Rock HVAC repair scheduled for Tuesday\n\nWould you like more detail on any of these items?'],def:['I\'m here to help. As your Arthur Murray Administrative Assistant, I can assist with:\n\nStudio analytics and KPIs\nStudent and lead information\nScheduling and instructor management\nMailChimp campaign updates\nFloating Content performance\nMeeting notes and action items\nProcess improvement recommendations\n\nWhat would you like to know?']};
@@ -1793,7 +2203,14 @@ async function loadFloatingRainData(){
     staffTbody.innerHTML = '';
     d.staff.forEach(s => {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td><strong>'+s.name+'</strong></td><td>'+s.dailyLessons+'</td><td>'+s.weeklyLessons+'</td>';
+      const bd = s.dailyBreakdown || {};
+      const prv = bd.Private || 0;
+      const grp = (bd.Group || 0) + (bd.Party || 0);
+      const trn = bd.Training || 0;
+      const wed = bd.Wedding || 0;
+      const oth = (bd.Other || 0) + (bd.Admin || 0) + wed;
+      const total = prv + grp + trn + oth;
+      tr.innerHTML = '<td><strong>'+s.name+'</strong></td><td>'+(prv||'—')+'</td><td>'+(grp||'—')+'</td><td>'+(trn||'—')+'</td><td>'+(oth||'—')+'</td><td><strong>'+total+'</strong></td><td>'+s.weeklyLessons+'</td>';
       staffTbody.appendChild(tr);
     });
 
@@ -1810,6 +2227,10 @@ async function loadFloatingRainData(){
 
     // Last updated
     document.getElementById('fr-last-updated').textContent = 'Updated ' + new Date(d.fetched_at).toLocaleTimeString();
+
+    // ===== Populate Castle Rock on Studio Locations page =====
+    const crStudentsEl = document.getElementById('cr-students');
+    if(crStudentsEl) crStudentsEl.textContent = d.kpis.active_students;
 
     // ===== Populate Dashboard main page KPIs =====
     document.getElementById('dash-active-students').textContent = d.kpis.active_students;

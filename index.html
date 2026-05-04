@@ -1176,22 +1176,38 @@ tr:hover td{background:rgba(255,255,255,.015);}
             const mailtoHref = `mailto:${mailtoTo}?subject=${mailtoSubject}&body=${mailtoBody}`;
 
             document.getElementById('leads-preview-actions').innerHTML = `
-              <a href="${mailtoHref}" class="leads-action-btn primary" style="text-decoration:none;display:inline-block;">Open in My Email</a>
-              <button class="leads-action-btn" id="try-copy-html-btn">Copy HTML for Zoho</button>
+              <button class="leads-action-btn primary" id="try-copy-html-btn" title="Copies the styled HTML email — paste into Zoho web's HTML compose mode to send the formatted version.">Copy formatted email (for Zoho)</button>
+              <button class="leads-action-btn" id="try-view-tab-btn" title="Opens the rendered email full-screen in a new browser tab so you can see exactly what the prospect would see.">View full email in new tab</button>
+              <a href="${mailtoHref}" class="leads-action-btn" style="text-decoration:none;display:inline-block;" title="Opens your default mail app with a plain-text version. Faster to send but loses the design.">Quick send (plain text)</a>
               <button class="leads-action-btn" id="try-another-btn">Try Another Lead</button>
               <button class="leads-action-btn" id="try-back-inbox-btn">Back to Inbox</button>
             `;
+
+            // Help text under the buttons explaining the trade-off
+            const actionsEl = document.getElementById('leads-preview-actions');
+            const helpEl = document.createElement('div');
+            helpEl.style.cssText = 'flex-basis:100%;font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;';
+            helpEl.innerHTML = '<strong style="color:var(--text-secondary);">To send the styled version:</strong> click <em>Copy formatted email</em>, open Zoho compose, switch to HTML mode (the &lt;&gt; icon), and paste. <em>Quick send</em> uses your default mail app but loses the formatting.';
+            actionsEl.appendChild(helpEl);
 
             document.getElementById('try-copy-html-btn').addEventListener('click', async (e) => {
               const btn = e.currentTarget;
               try {
                 await navigator.clipboard.writeText(ctx.renderedHtml);
                 const orig = btn.textContent;
-                btn.textContent = 'Copied — paste into Zoho compose';
-                setTimeout(() => { btn.textContent = orig; }, 2500);
+                btn.textContent = '✓ Copied — now paste into Zoho HTML compose';
+                setTimeout(() => { btn.textContent = orig; }, 3000);
               } catch {
-                btn.textContent = 'Copy failed — select & copy from the preview manually';
+                btn.textContent = 'Copy failed — try View Full Email and copy from there';
               }
+            });
+            document.getElementById('try-view-tab-btn').addEventListener('click', () => {
+              // Open the rendered email standalone in a new tab so the user sees it full-bleed,
+              // exactly as the prospect would.
+              const blob = new Blob([ctx.renderedHtml], { type: 'text/html' });
+              const url = URL.createObjectURL(blob);
+              window.open(url, '_blank', 'noopener,noreferrer');
+              // Don't revoke immediately — the new tab needs the URL. Browser will GC it when tab closes.
             });
             document.getElementById('try-another-btn').addEventListener('click', () => {
               inFromName.value = ''; inFromEmail.value = ''; inSubject.value = ''; inBody.value = '';
